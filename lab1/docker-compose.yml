@@ -1,0 +1,9 @@
+version: "3.9"
+services:
+  httpfs:
+    build: .
+    container_name: httpfs
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./content:/data:ro

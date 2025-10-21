@@ -1,0 +1,14 @@
+version: "3.9"
+services:
+  web:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      THREADING_MODE: "threaded"     # change to "single" or "pool"
+      POOL_SIZE: "8"
+      HANDLER_DELAY_MS: "1000"
+      COUNTER_MODE: "locked"         # switch to "naive" to demo race
+      RATE_LIMIT_RPS: "5"
+      RATE_LIMIT_BURST: "5"
+      CONTENT_ROOT: "content"
