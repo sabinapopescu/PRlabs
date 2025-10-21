@@ -1,9 +1,17 @@
 version: "3.9"
 services:
-  httpfs:
-    build: .
-    container_name: httpfs
+  web:
+    build:
+      context: .
+    image: pr-lab1-httpfs:latest
+    container_name: pr-lab1-web
     ports:
-      - "8080:8080"
-    volumes:
-      - ./content:/data:ro
+      - "8081:8080"   # expose lab1 on 8081
+    environment:
+      PORT: "8080"
+      THREADING_MODE: "single"     # baseline
+      HANDLER_DELAY_MS: "1000"
+      COUNTER_MODE: "locked"
+      RATE_LIMIT_RPS: "5"
+      RATE_LIMIT_BURST: "5"
+      CONTENT_ROOT: "content"
