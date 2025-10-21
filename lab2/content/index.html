@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>My Digital Library</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --card: #ffffff;
+      --ink: #1f2937;
+      --muted: #6b7280;
+      --brand: #2563eb;
+      --line: #e5e7eb;
+      --shadow: 0 10px 25px rgba(0,0,0,.07);
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 28px 22px 60px;
+      background: var(--bg); color: var(--ink);
+      font: 16px/1.55 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    .wrap { max-width: 1060px; margin: 0 auto; }
+
+    header h1 {
+      font-size: clamp(28px, 3.2vw, 44px);
+      letter-spacing: .5px; margin: 0 0 10px;
+    }
+    header .rule {
+      height: 4px; width: 100%;
+      background: linear-gradient(90deg, var(--brand), transparent);
+      border-radius: 999px; opacity: .45; margin-bottom: 22px;
+    }
+
+    /* Gallery */
+    .gallery {
+      display: grid; gap: 18px;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+    }
+    @media (max-width: 960px) { .gallery { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+    @media (max-width: 520px)  { .gallery { grid-template-columns: 1fr; } }
+
+    .tile {
+      background: var(--card); border-radius: var(--radius);
+      box-shadow: var(--shadow); overflow: hidden;
+      border: 1px solid var(--line);
+    }
+    .tile img {
+      display: block; width: 100%; aspect-ratio: 1 / 1; object-fit: cover;
+    }
+
+    /* Section title */
+    .section-title {
+      margin: 26px 0 10px; font-weight: 700;
+      font-size: clamp(20px, 2.4vw, 28px);
+    }
+
+    /* Books table */
+    .table {
+      width: 100%; border-collapse: collapse; border-radius: 12px; overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    .table th, .table td {
+      text-align: left; padding: 12px 14px; background: #fff;
+      border-bottom: 1px solid var(--line);
+    }
+    .table thead th {
+      background: #eef2ff; color: #374151; font-weight: 700;
+    }
+    .table tr:nth-child(even) td { background: #fbfbfe; }
+
+    a.link {
+      color: var(--brand); font-weight: 700; text-decoration: none;
+    }
+    a.link:hover { text-decoration: underline; }
+
+    .subdir {
+      margin-top: 26px; font-style: italic; color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Welcome to My Digital Library</h1>
+      <div class="rule"></div>
+    </header>
+
+    <!-- Gallery (auto-fills from PNGs it finds) -->
+    <div id="gallery" class="gallery" aria-label="Covers gallery">
+      <!-- JS will inject tiles here -->
+    </div>
+
+    <h2 class="section-title">Available Books</h2>
+    <table class="table" aria-label="Available books">
+      <thead>
+        <tr><th style="width:65%">Title</th><th>Open</th><th>Download</th></tr>
+      </thead>
+      <tbody id="books-body">
+        <!-- JS will inject rows here -->
+      </tbody>
+    </table>
+
+    <p class="subdir">
+      <a class="link" href="/books/">Open Subdirectory</a>
+    </p>
+  </div>
+
+  <script>
+    // ---- Utility helpers ----------------------------------------------------
+    const titleFromFile = (path) => {
+      const name = path.split('/').pop();
+      const base = name.replace(/\.[^.]+$/, '');
+      // Nice title casing from filename
+      return base.replace(/[-_]+/g, ' ')
+                 .replace(/\b\w/g, c => c.toUpperCase());
+    };
+
+    const parseListing = async (path) => {
+      // Fetch directory listing HTML served by your Python server and extract links
+      const res = await fetch(path);
+      const html = await res.text();
+      const doc  = new DOMParser().parseFromString(html, "text/html");
+      const links = Array.from(doc.querySelectorAll("a"))
+        .map(a => a.getAttribute("href"))
+        .filter(Boolean)
+        .filter(href => !href.startsWith("..")); // ignore parent links
+      // Normalize to absolute paths
+      return links.map(href => {
+        if (href.startsWith("http") || href.startsWith("/")) return href;
+        return (path.endsWith("/") ? path : path + "/") + href;
+      });
+    };
+
+    // ---- Build the page data ------------------------------------------------
+    (async () => {
+      // Discover PDFs & PNGs from root and /books/
+      const roots = ["/", "/books/"];
+      const all = (await Promise.all(roots.map(parseListing))).flat();
+
+      const pdfs = all.filter(p => p.toLowerCase().endsWith(".pdf"));
+      const pngs = all.filter(p => p.toLowerCase().endsWith(".png"));
+
+      // If nothing found, fall back to your existing sample names
+      if (pdfs.length === 0) {
+        pdfs.push("/sample.pdf");
+      }
+      if (pngs.length === 0) {
+        pngs.push("/image.png");
+      }
+
+      // ---- Fill gallery (max 4 tiles) ----
+      const gal = document.getElementById("gallery");
+      const show = (pngs.length >= 4) ? pngs.slice(0,4)
+                 : [...pngs, ...Array(4 - pngs.length).fill(pngs[0])].slice(0,4);
+      show.forEach(src => {
+        const div = document.createElement("div");
+        div.className = "tile";
+        const img = document.createElement("img");
+        img.src = src;
+        img.alt = "Cover image";
+        div.appendChild(img);
+        gal.appendChild(div);
+      });
+
+      // ---- Fill books table ----
+      const tbody = document.getElementById("books-body");
+      pdfs.forEach(p => {
+        const tr = document.createElement("tr");
+
+        const tdTitle = document.createElement("td");
+        tdTitle.textContent = titleFromFile(p);
+
+        const tdOpen = document.createElement("td");
+        const aOpen  = document.createElement("a");
+        aOpen.className = "link";
+        aOpen.href = p;
+        aOpen.target = "_blank";
+        aOpen.rel = "noopener";
+        aOpen.textContent = "Open";
+        tdOpen.appendChild(aOpen);
+
+        const tdDl = document.createElement("td");
+        const aDl  = document.createElement("a");
+        aDl.className = "link";
+        aDl.href = p;
+        aDl.setAttribute("download", "");
+        aDl.textContent = "Download";
+        tdDl.appendChild(aDl);
+
+        tr.append(tdTitle, tdOpen, tdDl);
+        tbody.appendChild(tr);
+      });
+    })().catch(console.error);
+  </script>
+</body>
+</html>

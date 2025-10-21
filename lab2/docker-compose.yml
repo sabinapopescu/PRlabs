@@ -1,0 +1,18 @@
+version: "3.9"
+services:
+  web:
+    build:
+      context: .
+    image: pr-lab2-httpfs:latest
+    container_name: pr-lab2-web
+    ports:
+      - "8082:8080"   # expose lab2 on 8082 (separate from lab1)
+    environment:
+      PORT: "8080"
+      THREADING_MODE: "threaded"   # or "pool"
+      POOL_SIZE: "8"
+      HANDLER_DELAY_MS: "1000"
+      COUNTER_MODE: "locked"       # switch to "naive" to demo the race
+      RATE_LIMIT_RPS: "5"
+      RATE_LIMIT_BURST: "5"
+      CONTENT_ROOT: "content"
