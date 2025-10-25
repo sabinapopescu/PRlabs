@@ -186,15 +186,25 @@ docker run --rm --network lab2_default curlimages/curl:8.10.1 \
 
 ---
 
-## 5) What to submit (screenshot checklist)
+## 5) Screenshots
 
-- `perf_single_10req.png` — time for 10 parallel requests (single‑threaded)
-- `perf_multi_10req.png` — time for 10 parallel requests (multi‑threaded or pool)
-- `race_naive.png` — listing showing lost counts with `COUNTER_MODE=naive`
-- `race_locked.png` — listing showing correct counts with `COUNTER_MODE=locked`
-- `ratelimit_spam.png` — the spam command(s) + stated R/s
-- `ratelimit_rates.png` — computed 200/s and 429/s
-- `ratelimit_host.png` & `ratelimit_container.png` — per‑IP demonstration
+<img width="1299" height="412" alt="image" src="https://github.com/user-attachments/assets/f4d2676d-5297-4e24-9548-1c7efb261abd" />
+
+<img width="1489" height="51" alt="image" src="https://github.com/user-attachments/assets/c0f42535-0166-4358-a0ad-6021ab284d05" />
+
+<img width="1040" height="251" alt="image" src="https://github.com/user-attachments/assets/04eaf8ca-6383-4f0f-b72a-a82d692a01f9" />
+
+<img width="985" height="109" alt="image" src="https://github.com/user-attachments/assets/3769ba96-ebd0-4e63-bfc1-c501216b7b2a" />
+
+<img width="1296" height="299" alt="image" src="https://github.com/user-attachments/assets/7dff57d4-47d8-4cb8-939c-1d1ebb21c9e9" />
+
+<img width="1329" height="233" alt="image" src="https://github.com/user-attachments/assets/32eca93a-ffdd-46d2-b422-30064f64221e" />
+
+
+
+
+
+
 
 ---
 
