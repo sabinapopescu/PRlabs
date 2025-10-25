@@ -200,7 +200,7 @@ docker run --rm --network lab2_default curlimages/curl:8.10.1 \
 
 <img width="1329" height="233" alt="image" src="https://github.com/user-attachments/assets/32eca93a-ffdd-46d2-b422-30064f64221e" />
 
-
+docker-compose run client-lock
 
 
 
