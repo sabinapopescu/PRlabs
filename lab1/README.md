@@ -166,14 +166,29 @@ The client prints HTML bodies to stdout and saves PNG/PDF to the chosen folder.
 
 ## 9) Screenshot (put under `lab1/screenshots/`)
 
-1. `docker compose up -d --build` output — `docker_up.png`  
-2. Running container (`docker ps` line) — `docker_ps.png`  
-3. Browser: `/` listing — `listing_root.png`  
-4. Browser: `/index.html` — `index_html.png`  
-5. Browser: `/image.png` — `image_png.png`  
-6. Browser: `/sample.pdf` — `pdf_ok.png`  
-7. `curl -I` for `/` and `/index.html` (200) — `curl_head.png`  
-8. Negative tests (`404`, `405`, `403`) — `curl_negatives.png`
+1. `docker compose up -d --build` output — `docker_up.png`
+<img width="1305" height="424" alt="image" src="https://github.com/user-attachments/assets/f796e94b-8f29-4e9e-97bc-dd7524bca612" />
+
+2. Running container (`docker ps` line) — `docker_ps.png`
+<img width="1480" height="47" alt="image" src="https://github.com/user-attachments/assets/1d4ddcf7-6588-4946-8096-f5195b632515" />
+
+4. Browser: `/` listing — `listing_root.png`  
+<img width="826" height="331" alt="image" src="https://github.com/user-attachments/assets/215611de-f944-4d46-8da1-ff50080dfa18" />
+
+5. Browser: `/index.html` — `index_html.png`  
+<img width="1792" height="1071" alt="image" src="https://github.com/user-attachments/assets/49145c3d-a5ea-4820-8de0-679531c3baf6" />
+
+6. Browser: `/image.png` — `image_png.png` 
+<img width="1791" height="1078" alt="image" src="https://github.com/user-attachments/assets/976e6cf3-da79-4e94-a8da-8a305e22a739" />
+
+7. Browser: `/sample.pdf` — `pdf_ok.png`  
+<img width="1785" height="1078" alt="image" src="https://github.com/user-attachments/assets/2459621e-dc52-4c71-a0b4-ac42a9e7f1aa" />
+
+8. `curl -I` for `/` and `/index.html` (200) — `curl_head.png` 
+<img width="499" height="112" alt="image" src="https://github.com/user-attachments/assets/aa80b70c-8ba3-4979-9dc6-50052a5783d6" />
+
+9. Negative tests (`404`, `405`, `403`) — `curl_negatives.png`
+<img width="544" height="586" alt="image" src="https://github.com/user-attachments/assets/f8ba4d03-5f18-4f04-ab77-0d2b93200238" />
 
 ---
 
