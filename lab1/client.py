@@ -1,12 +1,22 @@
 #!/usr/bin/env python3
-import os, sys, socket
+"""Minimal HTTP GET client for Lab 1.
+Connects to a host:port, requests a path, prints text responses,
+and saves PNG/PDF to disk.
+"""
+
+import os
+import sys
+import socket
+from typing import Dict, Tuple
 
 CRLF = "\r\n"
 
-def parse_headers(raw_headers: bytes):
+
+def parse_headers(raw_headers: bytes) -> Tuple[str, Dict[str, str]]:
+    """Parse HTTP status line and headers from raw bytes."""
     lines = raw_headers.decode("iso-8859-1").split("\r\n")
     status_line = lines[0]
-    headers = {}
+    headers: Dict[str, str] = {}
     for line in lines[1:]:
         if not line:
             continue
@@ -15,7 +25,9 @@ def parse_headers(raw_headers: bytes):
             headers[k.strip().lower()] = v.strip()
     return status_line, headers
 
-def main():
+
+def main() -> None:
+    """Entry point. Usage: client.py server_host server_port url_path out_dir"""
     if len(sys.argv) != 5:
         print("Usage: client.py server_host server_port url_path directory")
         sys.exit(1)
@@ -33,11 +45,11 @@ def main():
         f"User-Agent: MinimalPyClient/1.0{CRLF}{CRLF}"
     ).encode("utf-8")
 
-    with socket.create_connection((host, port), timeout=5) as s:
-        s.sendall(req)
+    with socket.create_connection((host, port), timeout=5) as sock:
+        sock.sendall(req)
         chunks = []
         while True:
-            chunk = s.recv(4096)
+            chunk = sock.recv(4096)
             if not chunk:
                 break
             chunks.append(chunk)
@@ -49,16 +61,15 @@ def main():
 
     header_bytes, body = resp.split(b"\r\n\r\n", 1)
     status_line, headers = parse_headers(header_bytes)
-
     print(status_line)
 
     ctype = headers.get("content-type", "")
     if ctype.startswith("text/html"):
         try:
-            print(body.decode("utf-8", errors="replace"))
-        except Exception:
+            print(body.decode("utf-8"))
+        except UnicodeDecodeError:
             print(body.decode("iso-8859-1", errors="replace"))
-    elif ctype.startswith("image/png") or ctype.startswith("application/pdf"):
+    elif ctype.startswith(("image/png", "application/pdf")):
         name = os.path.basename(path.rstrip("/")) or "index"
         if ctype.startswith("image/png") and not name.endswith(".png"):
             name += ".png"
@@ -69,7 +80,9 @@ def main():
             f.write(body)
         print(f"[SAVED] {out_path}")
     else:
+        # Fallback: try to display as text
         print(body.decode("utf-8", errors="replace"))
+
 
 if __name__ == "__main__":
     main()

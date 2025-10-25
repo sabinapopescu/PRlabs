@@ -1,326 +1,181 @@
-# Lab 1: HTTP File Server with TCP Sockets
+# Lab 1 — HTTP File Server (TCP Sockets + Docker)
 
-**Author:** Sabina Popescu, **FAF-233**
+**Author:** Sabina Popescu (FAF-233)
 
-## 1. Introduction
-This laboratory work implements a minimal **HTTP file server** using **Python TCP sockets** and **Docker Compose**.  
-The server serves files from a chosen root directory and supports:
-- **HTML** pages (text/html)
-- **PNG** images (image/png)
-- **PDF** documents (application/pdf)
+## 1) Purpose & Scope
+Build a **minimal HTTP/1.1 file server** over raw **TCP sockets** and run it reproducibly in Docker.  
+Lab-1 focuses on correctness and protocol handling, not performance.
 
-Unknown extensions return **404 Not Found**.  
-The project also includes an **optional Python client** that:
-- prints HTML/directory listing bodies to stdout
-- saves PNG/PDF responses to a local folder
+**Supported features**
+- Methods: **GET** (and **HEAD** for tooling/tests)
+- MIME whitelist: **`.html`**, **`.png`**, **`.pdf`** (and **`.ico`** to quiet browser favicon probes)
+- Directory handling: list directory contents; serve `index.html` if requested explicitly
+- Safe file mapping (prevents `../` traversal)
+- Correct headers: `Date`, `Server`, `Content-Type`, `Content-Length`, `Connection: close`
 
-Everything runs reproducibly via Docker Compose.
+**Out of scope (Lab-2):** concurrency/thread pool, race-condition demo, rate-limiting.
 
 ---
 
-## 2. Source Directory Contents
-
-Repository layout (this lab lives in `./lab1`):
-
+## 2) Project Layout
 ```
 lab1/
-├─ content/                 # served root (HTML, PNG, PDF, subfolders)
+├─ content/                 # served root
 │  ├─ index.html
 │  ├─ image.png
 │  ├─ sample.pdf
 │  └─ books/
 │     ├─ book1.pdf
 │     └─ cover.png
-├─ client.py                # optional client (GET-only)
-├─ server.py                # single-connection HTTP socket server
-├─ Dockerfile               # server image
-├─ docker-compose.yml       # one service: httpfs
+├─ client.py                # optional test client (GET)
+├─ server.py                # single-connection HTTP server
+├─ Dockerfile
+├─ docker-compose.yml
 └─ README.md                # this report
 ```
 
-> Add your proof images under `lab1/screenshots/` and keep the same names as below.
+---
 
-**Visual tree:**  
-![screenshots/full_dir.png](screenshots/full_dir.png)
+## 3) Server Implementation (high-level)
+- Accept TCP, read until `\r\n\r\n`, parse request line and headers.
+- **Path resolution:** strip `?query`/`#fragment`, URL-decode, join with root, reject escape outside root.
+- **Response builder:** status line + headers + optional body; always sets `Content-Length`.
+- **GET/HEAD logic:** HEAD returns headers only with correct length.
+- **MIME whitelist:** unknown extensions ⇒ **404 Not Found**.
+- **Security:** traversal outside root ⇒ **403 Forbidden**.
 
 ---
 
-## 3. Docker Containerization
+## 4) Dockerization
 
-### Dockerfile (server)
+### `Dockerfile`
 ```dockerfile
 FROM python:3.12-slim
 WORKDIR /app
 COPY server.py /app/server.py
 EXPOSE 8080
-# The served directory is provided by a volume at /data (see docker-compose)
 CMD ["python", "/app/server.py", "/data", "--host", "0.0.0.0", "--port", "8080"]
 ```
 
-### docker-compose.yml
+### `docker-compose.yml` (Lab-1 service on port **8081**)
 ```yaml
 services:
-  httpfs:
-    build: .
-    container_name: httpfs
+  web:
+    build:
+      context: .
+    image: pr-lab1-httpfs:latest
+    container_name: pr-lab1-web
     ports:
-      - "8080:8080"
+      - "8081:8080"
     volumes:
-      - ./content:/data:ro
+      - ./content:/data:ro   # serve host ./content inside container as /data
 ```
-
-> `./content` on the host is mounted read-only at `/data` in the container.
 
 ---
 
-## 4. Starting the Container
-
-From inside `lab1/`:
+## 5) Run Instructions
 
 ```bash
-docker compose up --build -d
-docker compose ps
+cd lab1
+docker compose down
+docker compose up -d --build
+
+# verify it's up
+docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | grep pr-lab1-web
+docker logs --tail=20 pr-lab1-web
 ```
 
-**Expected logs:**
+**Expected log line**
 ```
 [INFO] Serving '/data' at http://0.0.0.0:8080 (one request at a time)
 ```
 
-**Screenshots:**
-- Build output: ![screenshots/docker_build.png](screenshots/docker_build.png)  
-- Running service: ![screenshots/docker_up.png](screenshots/docker_up.png)
-
-To stop:
+**Stop**
 ```bash
 docker compose down
 ```
 
 ---
 
-## 5. Running the Server Locally (no Docker)
+## 6) Quick Functional Tests
+
+### Browser
+- `http://localhost:8081/`           → directory listing of `/content`
+- `http://localhost:8081/index.html` → renders HTML (may reference `/image.png`)
+- `http://localhost:8081/image.png`  → displays PNG
+- `http://localhost:8081/sample.pdf` → displays/opens PDF
+- `http://localhost:8081/not-here.pdf` → **404 Not Found**
+
+### `curl`
+```bash
+# HEAD sanity (should be 200)
+curl -I http://localhost:8081/
+curl -I http://localhost:8081/index.html
+
+# GET (show headers; discard bodies for binaries)
+curl -v http://localhost:8081/index.html
+curl -v http://localhost:8081/image.png   --output /dev/null
+curl -v http://localhost:8081/sample.pdf  --output /dev/null
+
+# Directory listing
+curl -v http://localhost:8081/
+curl -v http://localhost:8081/books/
+
+# Negative tests
+curl -v http://localhost:8081/not-here.pdf
+curl -v -X POST http://localhost:8081/                 # 405 Method Not Allowed
+curl -v "http://localhost:8081/../../etc/passwd"       # 403 Forbidden
+```
+
+---
+
+## 7) Optional Client Usage
 
 ```bash
-python3 server.py ./content --host 0.0.0.0 --port 8080
+# Print listing
+python3 client.py 127.0.0.1 8081 / downloads
+
+# Save binaries
+python3 client.py 127.0.0.1 8081 /image.png  downloads
+python3 client.py 127.0.0.1 8081 /sample.pdf downloads
+
+# Subdirectory listing
+python3 client.py 127.0.0.1 8081 /books/ downloads
 ```
 
-**Screenshot (terminal):**  
-![screenshots/opened_server.png](screenshots/opened_server.png)
+The client prints HTML bodies to stdout and saves PNG/PDF to the chosen folder.
 
 ---
 
-## 6. Contents of the Served Directory
+## 8) Troubleshooting (common)
 
-The root `/data` (host `./content`) contains:
+- **`curl -I` returns 405**  
+  You’re running an older `server.py` without HEAD support. Use the current version (GET+HEAD).
 
-- `index.html` (references an image via `<img src="/image.png">`)
-- `image.png`
-- `sample.pdf`
-- `books/` (subdirectory with `book1.pdf`, `cover.png`)
+- **Intermittent 404s**  
+  Ensure files really exist under `lab1/content/...`. Remember: only `.html/.png/.pdf/.ico` are served.
 
-**Screenshot (file tree):**  
-![screenshots/served_dir.png](screenshots/served_dir.png)
+- **Nothing loads**  
+  Check mapping and port: `volumes: ./content:/data:ro` and `8081:8080`.  
+  Confirm: `docker logs pr-lab1-web` and `docker ps`.
 
----
-
-## 7. Required Browser Tests (4 cases)
-
-1) **HTML with image**
-```
-http://localhost:8080/index.html
-```
-![screenshots/html_success.png](screenshots/html_success.png)
-
-2) **PDF file**
-```
-http://localhost:8080/sample.pdf
-```
-![screenshots/pdf_success.png](screenshots/pdf_success.png)
-
-3) **PNG file**
-```
-http://localhost:8080/image.png
-```
-![screenshots/png_success.png](screenshots/png_success.png)
-
-4) **Inexistent file (404)**
-```
-http://localhost:8080/not-here.pdf
-```
-![screenshots/inexistent_fail.png](screenshots/inexistent_fail.png)
+- **Container name conflict**  
+  `docker rm -f pr-lab1-web` then `docker compose up -d --build`.
 
 ---
 
-## 8. cURL Verifications (headers + statuses)
+## 9) Screenshot (put under `lab1/screenshots/`)
 
-```bash
-# HTML
-curl -v http://localhost:8080/index.html
-
-# PNG (discard body)
-curl -v http://localhost:8080/image.png --output /dev/null
-
-# PDF (discard body)
-curl -v http://localhost:8080/sample.pdf --output /dev/null
-
-# Directory listings
-curl -v http://localhost:8080/
-curl -v http://localhost:8080/books/
-
-# 404
-curl -v http://localhost:8080/not-here.pdf
-
-# 405 for non-GET
-curl -v -X POST http://localhost:8080/
-
-# Path traversal blocked (expect 403)
-curl -v "http://localhost:8080/../../etc/passwd"
-```
-
-**Screenshot (selected headers):**  
-![screenshots/curl_headers.png](screenshots/curl_headers.png)
+1. `docker compose up -d --build` output — `docker_up.png`  
+2. Running container (`docker ps` line) — `docker_ps.png`  
+3. Browser: `/` listing — `listing_root.png`  
+4. Browser: `/index.html` — `index_html.png`  
+5. Browser: `/image.png` — `image_png.png`  
+6. Browser: `/sample.pdf` — `pdf_ok.png`  
+7. `curl -I` for `/` and `/index.html` (200) — `curl_head.png`  
+8. Negative tests (`404`, `405`, `403`) — `curl_negatives.png`
 
 ---
 
-## 9. Client Script — Demonstration (Optional +2 pts)
-
-Run while the container is up:
-
-```bash
-# Print root directory listing (HTML)
-python3 client.py 127.0.0.1 8080 / downloads
-
-# Save PNG/PDF to 'downloads' folder (created if missing)
-python3 client.py 127.0.0.1 8080 /image.png downloads
-python3 client.py 127.0.0.1 8080 /sample.pdf downloads
-
-# Print subdirectory listing
-python3 client.py 127.0.0.1 8080 /books/ downloads
-```
-
-**Screenshots:**
-- Client console: ![screenshots/docker_up_client.png](screenshots/docker_up_client.png)  
-- Saved files: ![screenshots/downloads.png](screenshots/downloads.png)
-
----
-
-## 10. Directory Listing — Demonstration
-
-Root listing (`/`) shows files and folders with links; subdirectory listing (`/books/`) shows PDFs/PNGs and a parent link.
-
-- Root:
-  ![screenshots/main_page.png](screenshots/main_page.png)
-- Subdirectory:
-  ![screenshots/subdirectory.png](screenshots/subdirectory.png)
-
----
-
-## 11. Client Connecting from Another Machine (LAN)
-
-**Server (my laptop):**
-1. Ensure container is running (`docker compose up -d`).
-2. Find IPv4:
-   - **macOS**
-     ```bash
-     ipconfig getifaddr "$(route get default 2>/dev/null | awk '/interface:/{print $2}')"
-     ```
-   - **Windows**
-     ```powershell
-     ipconfig
-     ```
-3. Self-test:
-   ```bash
-   curl -v http://<my-ip>:8080/
-   ```
-
-**Client (friend’s laptop on same Wi‑Fi):**
-- Open in browser: `http://<my-ip>:8080/`
-- Or run my client:
-  ```bash
-  python3 client.py <my-ip> 8080 /books/book1.pdf downloads
-  ```
-
-**Screenshots:**
-- My IP: ![screenshots/ipconfig.png](screenshots/ipconfig.png)  
-- Friend viewing/downloading: ![screenshots/computer2.png](screenshots/computer2.png)
-
-> Some guest/campus Wi‑Fi networks block device‑to‑device traffic (AP isolation). If so, use another network or a phone hotspot.
-
----
-
-## 12. Implementation Notes
-
-- **Protocol:** HTTP/1.1, single request per TCP connection (server closes after response).  
-- **Headers used:** `Content-Type`, `Content-Length`, `Date`, `Connection`, `Server`, `Allow` (for 405).  
-- **Security:** Blocks path traversal by comparing `realpath` of requested path against the root directory.  
-- **MIME whitelist:** `.html`, `.png`, `.pdf` (unknown → 404).  
-- **Directory listing:** dynamically generated HTML with links and parent navigation.
-
----
-
-## 13. How to Reproduce (TA quick start)
-
-```bash
-cd lab1
-docker compose up --build -d
-# Then visit:
-#   http://localhost:8080/
-#   http://localhost:8080/index.html
-#   http://localhost:8080/image.png
-#   http://localhost:8080/sample.pdf
-#   http://localhost:8080/not-here.pdf
-```
-
----
-
-## 14. Conclusions
-
-The lab demonstrates how **application-level protocols (HTTP)** run over **transport (TCP)** with manual parsing, correct header construction, MIME typing, and safe filesystem mapping.  
-Docker Compose ensures the grader can reproduce the environment consistently.  
-The optional client validates the end-to-end flow for **HTML rendering** and **binary file downloads**.
-
-
-
-
-
-
-<!-- # PR Lab 1 – HTTP File Server (Sockets + Docker Compose)
-
-This repository contains a minimal HTTP file server built over raw TCP sockets,
-plus an optional HTTP client, Dockerfile, and Docker Compose for easy running.
-
-## Quickstart
-```bash
-docker compose up --build
-# open http://localhost:8080/
-```
-
-## Run locally (without Docker)
-```bash
-python3 server.py ./content --host 0.0.0.0 --port 8080
-```
-
-## Client (optional)
-```bash
-python3 client.py 127.0.0.1 8080 / downloads
-python3 client.py 127.0.0.1 8080 /image.png downloads
-python3 client.py 127.0.0.1 8080 /sample.pdf downloads
-python3 client.py 127.0.0.1 8080 /books/ downloads
-```
-
-## Folder structure
-```
-pr-lab1/
-├─ server.py
-├─ client.py
-├─ Dockerfile
-├─ docker-compose.yml
-├─ README.md
-└─ content/
-   ├─ index.html
-   ├─ image.png
-   ├─ sample.pdf
-   └─ books/
-      ├─ book1.pdf
-      └─ cover.png
-``` -->
+## 10) Conclusion
+Lab-1 demonstrates a correct, minimal HTTP server over raw sockets with safe path resolution, MIME-aware responses, directory listings, and reproducible Docker packaging. It forms the baseline for Lab-2, where we will add concurrency, race-condition analysis, and rate-limiting.

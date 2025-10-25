@@ -1,368 +1,205 @@
-# Lab 2: Concurrent HTTP Server — Multithreading, Race Conditions, and Locks
+# Lab 2 — Concurrent HTTP Server (Multithreading, Race Condition, Rate Limiting)
 
-**Author:** Popescu Sabina, **FAF-233**
+**Author:** Popescu Sabina (FAF‑233)
 
-## 1. Introduction
-This laboratory work implements and compares **concurrent HTTP servers** using **multithreading** under two scenarios:
-- **Race condition present** (no synchronization)
-- **Race condition handled** (using a thread lock)
-
-To establish a baseline, a **single‑threaded** server is also included. We compare elapsed times for handling **10 requests** across all variants. For realism, each request simulates ~1s of work, and servers enforce a **rate limit = 5 requests/second**.
-
-The lab also includes client scripts for both single‑threaded and multi‑threaded scenarios to generate controlled load and measure end‑to‑end timing.
+> All experiments use **your Lab‑2 server** (`server.py`) on **http://localhost:8082** (container: `pr-lab2-web`).  
+> Configuration is via `lab2/docker-compose.yml` environment variables:
+> `THREADING_MODE` = `single`/`threaded`/`pool`, `POOL_SIZE`, `HANDLER_DELAY_MS`,  
+> `COUNTER_MODE` = `naive`/`locked`, `RATE_LIMIT_RPS`, `RATE_LIMIT_BURST`.
 
 ---
 
-## 2. Source Directory Contents (`./lab2`)
-### Server scripts
-- **`singlethreaded_server.py`** — handles one request at a time and measures total time for N requests.
-- **`multithreaded_server_no_lock.py`** — concurrent server with `RATE_LIMIT=5`, intentionally **no locks** to exhibit a race condition.
-- **`multithreaded_server_lock.py`** — same as above but **adds thread locks** to remove the race.
-
-### Client scripts
-- **`client.py`** — load generator for the multithreaded servers (concurrent requests).
-- **`client_single.py`** — sequential client for the single‑threaded server.
-
-### Docker files
-- **`server.dockerfile`**
-- **`client.dockerfile`** (can be reused for both clients if desired)
-- **`docker-compose.yml`** — defines three server services and three clients.
-
-```
-lab2/
-├─ server.dockerfile
-├─ client.dockerfile
-├─ docker-compose.yml
-├─ singlethreaded_server.py
-├─ multithreaded_server_no_lock.py
-├─ multithreaded_server_lock.py
-├─ client.py
-├─ client_single.py
-├─ public/                 # optional static assets to serve
-└─ screenshots/            # figures used in this report
-```
-
-![directories.png](screenshots/directories.png)
-
----
-
-## 3. Docker Containerization
-
-### `client.dockerfile`
-```dockerfile
-FROM python:3.12-slim
-WORKDIR /app
-COPY client.py .
-COPY client_single.py .
-RUN pip install requests
-CMD ["python", "client.py"]
-```
-
-### `server.dockerfile`
-```dockerfile
-FROM python:3.12-slim
-WORKDIR /app
-COPY multithreaded_server_lock.py .
-COPY multithreaded_server_no_lock.py .
-COPY singlethreaded_server.py .
-COPY public/ ./public/
-EXPOSE 8000 8001 8002
-CMD ["python", "singlethreaded_server.py"]
-```
-
-### `docker-compose.yml`
-```yaml
-services:
-  singlethreaded-server:
-    build:
-      context: .
-      dockerfile: server.dockerfile
-    container_name: singlethreaded-server
-    ports:
-      - "8000:8000"
-    command: ["python", "singlethreaded_server.py"]
-    networks: [app-network]
-
-  multithreaded-lock-server:
-    build:
-      context: .
-      dockerfile: server.dockerfile
-    container_name: multithreaded-lock-server
-    ports:
-      - "8001:8001"
-    command: ["python", "multithreaded_server_lock.py"]
-    networks: [app-network]
-
-  multithreaded-nolock-server:
-    build:
-      context: .
-      dockerfile: server.dockerfile
-    container_name: multithreaded-nolock-server
-    ports:
-      - "8002:8002"
-    command: ["python", "multithreaded_server_no_lock.py"]
-    networks: [app-network]
-
-  client-single:
-    build:
-      context: .
-      dockerfile: client.dockerfile
-    container_name: client-single
-    depends_on: [singlethreaded-server]
-    environment:
-      SERVER_HOST: singlethreaded-server
-      SERVER_PORT: "8000"
-    command: ["python", "client_single.py"]
-    networks: [app-network]
-
-  client-lock:
-    build:
-      context: .
-      dockerfile: client.dockerfile
-    container_name: client-lock
-    depends_on: [multithreaded-lock-server]
-    environment:
-      SERVER_HOST: multithreaded-lock-server
-      SERVER_PORT: "8001"
-    command: ["python", "client.py"]
-    networks: [app-network]
-
-  client-nolock:
-    build:
-      context: .
-      dockerfile: client.dockerfile
-    container_name: client-nolock
-    depends_on: [multithreaded-nolock-server]
-    environment:
-      SERVER_HOST: multithreaded-nolock-server
-      SERVER_PORT: "8002"
-    command: ["python", "client.py"]
-    networks: [app-network]
-
-networks:
-  app-network:
-    driver: bridge
-```
-
----
-
-## 4. Starting the Containers
-
-The following commands will:
-1) Build all images  
-2) Run a server container  
-3) Run a client container
-
-```bash
-docker compose build
-docker compose up singlethreaded-server
-# in another terminal
-docker compose run client-single
-```
-
-For the multithreaded scenarios, use:
-```bash
-# With locks
-docker compose up multithreaded-lock-server
-docker compose run client-lock
-
-# Without locks
-docker compose up multithreaded-nolock-server
-docker compose run client-nolock
-```
-
-**Screenshots:**  
-![compose_build.png](screenshots/compose_build.png)  
-![up_single.png](screenshots/up_single.png)
-
----
-
-## 5. Demonstrations & Results
-
-### Case 1 — Single‑threaded server
-1. Start server:
-   ```bash
-   docker compose up singlethreaded-server
-   ```
-2. Run client:
-   ```bash
-   docker compose run client-single
-   ```
-
-The client sends **10 requests** of ~1s each; server processes them **sequentially**.  
-**Measured total time** ≈ **10–11 s** (e.g., 10.13 s).
-
-Screens:
-- Server run: ![up_single.png](screenshots/up_single.png)  
-- Client output: ![client_single.png](screenshots/client_single.png)
-
-***
-
-### Case 2 — Multithreaded server **without** lock (race condition)
-1. Start server:
-   ```bash
-   docker compose up multithreaded-nolock-server
-   ```
-2. Run client:
-   ```bash
-   docker compose run client-nolock
-   ```
-
-The client issues **10 concurrent requests**. The server enforces **RATE_LIMIT = 5** req/s but **no lock** is used.  
-With a tiny intentional delay (e.g., `time.sleep(0.01)`) near the shared counter, a **race condition** appears: some seconds record **<5** or **>5** accepted requests.
-
-Screens:
-- Server run: ![up_multi_nolock.png](screenshots/up_multi_nolock.png)  
-- Client output: ![client_nolock.png](screenshots/client_nolock.png)  
-- Race visualization: ![race_cond.png](screenshots/race_cond.png)
-
-***
-
-### Case 3 — Multithreaded server **with** lock (fixed)
-1. Start server:
-   ```bash
-   docker compose up multithreaded-lock-server
-   ```
-2. Run client:
-   ```bash
-   docker compose run client-lock
-   ```
-
-A **thread lock** protects the shared state (request counters & rate‑limit windows).  
-Result: each second **exactly 5** requests are admitted; no anomalies.
-
-Screens:
-- Server run: ![up_lock_server.png](screenshots/up_lock_server.png)  
-- Client output: ![client_lock.png](screenshots/client_lock.png)  
-- Fixed race view: ![race_cond_no.png](screenshots/race_cond_no.png)
-
----
-
-## 6. Rate Limiting (Design Snapshot)
-
-**Data structures:**
-```python
-from collections import defaultdict
-import threading
-
-RATE_LIMIT = 5  # requests / second
-rate_limit_dict = defaultdict(list)   # ip -> [timestamps]
-rate_lock = threading.Lock()
-```
-
-**Check & enforce in handler:**
-```python
-with rate_lock:
-    now = time.time()
-    timestamps = [t for t in rate_limit_dict[client_ip] if now - t < 1]
-    if len(timestamps) >= RATE_LIMIT:
-        self.send_response(429); self.end_headers()
-        self.wfile.write(b"Rate limit exceeded\n")
-        return
-    timestamps.append(now)
-    rate_limit_dict[client_ip] = timestamps
-```
-
----
-
-## 7. Thread Locks (Why & How)
-
-A **Lock** is a synchronization primitive for **exclusive access** to shared state. When one thread acquires the lock, others must wait until it’s released. This prevents interleavings that cause **race conditions**.
-
-**Example usage in the locked server:**
-```python
-request_counter = defaultdict(int)
-counter_lock = threading.Lock()
-
-# Increment safely
-with counter_lock:
-    request_counter[self.path] += 1
-```
-
-Combined with the **rate_lock** above, the server eliminates races both in **rate limiting** and **per‑path counting**.
-
----
-
-## 8. Timing Comparison (example)
-
-- **Single‑threaded (10 × 1s):** ~10–11 s total
-- **Multithreaded without lock:** shows anomalies in per‑second admitted counts (race)
-- **Multithreaded with lock:** correct per‑second admitted counts; total wall‑time reduced due to concurrency but capped by rate limit
-
-(Insert your measured numbers and graphs here.)  
-![timings.png](screenshots/timings.png)
-
----
-
-## 9. Conclusions
-
-- Multithreading improves **throughput** and **wall‑clock time** for multiple requests, but **unsynchronized shared state** leads to **races** and broken invariants.
-- Using **thread locks** restores correctness under concurrency, at a small coordination cost.
-- Rate limiting with shared buckets requires **atomic updates** (lock or other concurrency‑safe approach).
-- The experiment highlights the trade‑offs between **performance** and **synchronization overhead**.
-
----
-
-## 10. Repro Instructions (TA Quick Start)
+## 0) How to (re)start between scenarios
 
 ```bash
 cd lab2
-docker compose build
-
-# Single-threaded demo
-docker compose up singlethreaded-server
-# new terminal:
-docker compose run client-single
-
-# MT without lock
-docker compose up multithreaded-nolock-server
-# new terminal:
-docker compose run client-nolock
-
-# MT with lock
-docker compose up multithreaded-lock-server
-# new terminal:
-docker compose run client-lock
+docker compose down
+docker compose up -d --build
+docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | grep pr-lab2-web
+# Use GET for header checks (server only implements GET):
+curl -s -D- http://localhost:8082/ -o /dev/null
 ```
 
+---
 
-<!-- ## Lab 2: Concurrent HTTP Server (on top of Lab 1)
+## 1) Performance comparison between the two servers
 
-This keeps the Lab 1 TCP-socket server shape, adds:
-- **Concurrency**: `single`, `threaded` (thread-per-request), or bounded `pool`.
-- **Artificial delay** to expose concurrency (~1s).
-- **Per-file counters** shown in directory listings.
-  - `COUNTER_MODE=naive` intentionally racy (read-modify-write with small sleep).
-  - `COUNTER_MODE=locked` fixes the race with a mutex.
-- **Per-IP rate limiting** ~5 rps using a token bucket (HTTP 429 on exceed).
+Each request simulates ~`HANDLER_DELAY_MS = 1000 ms`. We send **10 requests** in parallel and measure wall‑time.
 
-### Run locally
+### 1.a) Single‑threaded server (baseline)
+
+**Compose env:**
+```yaml
+THREADING_MODE: "single"
+HANDLER_DELAY_MS: "1000"
+```
+
+**Run & measure (10 parallel GETs):**
+```bash
+cd lab2 && docker compose up -d --build
+time seq 10 | xargs -n1 -P10 -I{} curl -s -o /dev/null http://localhost:8082/image.png
+```
+
+- **Measured time (paste `real`):** `____ s`  
+- 📸 `screenshots/perf_single_10req.png`
+
+---
+
+### 1.b) Multi‑threaded server
+
+Pick one (you can do both):  
+**Thread-per-request**
+```yaml
+THREADING_MODE: "threaded"
+HANDLER_DELAY_MS: "1000"
+```
+**OR Fixed pool**
+```yaml
+THREADING_MODE: "pool"
+POOL_SIZE: "8"
+HANDLER_DELAY_MS: "1000"
+```
+
+**Run & measure:**
+```bash
+docker compose up -d --build
+time seq 10 | xargs -n1 -P10 -I{} curl -s -o /dev/null http://localhost:8082/image.png
+```
+
+- **Measured time (paste `real`):** `____ s`  
+- 📸 `screenshots/perf_multi_10req.png`
+
+**Expected shape:** single ≈ 10–11s; threaded/pool ≈ 1–3s for 10×1s with concurrency 8–10.
+
+---
+
+## 2) Hit counter & race condition
+
+Your server exposes a per‑file counter shown in the directory listing.
+
+### 2.a) Trigger a race
+
+**Compose env:**
+```yaml
+THREADING_MODE: "threaded"   # or "pool"
+COUNTER_MODE: "naive"
+```
+
+**Hammer the same file; then read the count from listing:**
+```bash
+docker compose up -d --build
+seq 100 | xargs -n1 -P20 -I{} curl -s -o /dev/null http://localhost:8082/image.png
+curl -s http://localhost:8082/ | grep -E 'image\.png|requests'
+```
+- **Observation:** `requests: N` is **< 100** (lost updates).  
+- 📸 `screenshots/race_naive.png`
+
+### 2.b) Code responsible (≤ 4 lines)
+
+```python
+# NAIVE (racy): read-modify-write without a lock
+old = request_counts[full_path]
+time.sleep(0.002)
+request_counts[full_path] = old + 1
+```
+
+### 2.c) Fixed code (≤ 4 lines)
+
+```python
+# FIXED (mutex-protected)
+with counts_lock:
+    request_counts[full_path] += 1
+```
+
+**Verify after fix:**
+```yaml
+COUNTER_MODE: "locked"
+```
+```bash
+docker compose up -d --build
+seq 100 | xargs -n1 -P20 -I{} curl -s -o /dev/null http://localhost:8082/image.png
+curl -s http://localhost:8082/ | grep -E 'image\.png|requests'
+```
+- **Observation:** count matches the number of hits (no losses).  
+- 📸 `screenshots/race_locked.png`
+
+---
+
+## 3) Rate limiting
+
+Server uses a **per‑IP token bucket** (env: `RATE_LIMIT_RPS`, `RATE_LIMIT_BURST`).
+
+### 3.a) Show how you spam requests (specify Requests/second)
+
+**Burst (very high R/s):**
+```bash
+seq 40 | xargs -n1 -P30 -I{} curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8082/ \
+  | sort | uniq -c
+# ≈30 req/s for a short burst with -P30
+```
+**Controlled ~10 R/s for ~10s (100 req):**
+```bash
+for i in $(seq 100); do
+  (curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8082/ &)
+  sleep 0.10
+done; wait
+```
+- 📸 `screenshots/ratelimit_spam.png` (show the command + comment the intended R/s).
+
+### 3.b) Response statistics (successful R/s, denied R/s)
 
 ```bash
-# baseline single-threaded (expect ~10s for 10 concurrent reqs)
-PORT=8080 THREADING_MODE=single HANDLER_DELAY_MS=1000 python server.py
-
-# concurrent thread-per-request (~1-2s for 10 concurrent reqs)
-THREADING_MODE=threaded HANDLER_DELAY_MS=1000 python server.py
-
-# fixed thread pool of 8 (~2s for 10 concurrent reqs)
-THREADING_MODE=pool POOL_SIZE=8 HANDLER_DELAY_MS=1000 python server.py
-
+start=$(date +%s)
+seq 100 | xargs -n1 -P40 -I{} \
+  curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8082/ \
+  | tee /tmp/codes.txt >/dev/null
+end=$(date +%s); dur=$(( end - start )); [ $dur -eq 0 ] && dur=1
+ok=$(grep -c '^200$' /tmp/codes.txt || true)
+deny=$(grep -c '^429$' /tmp/codes.txt || true)
+printf "Duration: %ss  200/s: %.2f  429/s: %.2f\n" "$dur" "$(echo "$ok/$dur" | bc -l)" "$(echo "$deny/$dur" | bc -l)"
 ```
+- 📸 `screenshots/ratelimit_rates.png` (include duration + computed 200/s and 429/s).
 
-## Folder structure
+### 3.c) Per‑IP awareness (second IP still succeeds)
+
+Run a second client in another container on the same Compose network (`lab2_default`).
+
+```bash
+# Host keeps spamming at high concurrency
+seq 40 | xargs -n1 -P30 -I{} curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8082/ | sort | uniq -c
+
+# Second IP from a container:
+docker run --rm --network lab2_default curlimages/curl:8.10.1 \
+  sh -c "seq 20 | xargs -n1 -P20 -I{} curl -s -o /dev/null -w '%{http_code}\n' http://pr-lab2-web:8080/ | sort | uniq -c"
 ```
-pr-lab2/
-├─ server.py
-├─ client.py
-├─ Dockerfile
-├─ docker-compose.yml
-├─ README.md
-└─ content/
-   ├─ index.html
-   ├─ image.png
-   ├─ sample.pdf
-   └─ books/
-      ├─ book1.pdf
-      └─ cover.png
-``` -->
+- **Expected:** while the host sees many `429`, the container still gets mostly `200`.  
+- 📸 `screenshots/ratelimit_host.png` + `screenshots/ratelimit_container.png`
+
+---
+
+## 4) Brief design notes (context to screenshots)
+
+- **Threading modes:** `single` (serial), `threaded` (per‑request), `pool` (fixed workers + queue).
+- **Artificial delay:** `HANDLER_DELAY_MS` makes concurrency effects visible.
+- **Race demo:** `COUNTER_MODE=naive` uses read‑modify‑write with a tiny sleep; `locked` uses a mutex.
+- **Rate limiting:** token bucket per client IP (thread‑safe via an internal lock).
+
+---
+
+## 5) What to submit (screenshot checklist)
+
+- `perf_single_10req.png` — time for 10 parallel requests (single‑threaded)
+- `perf_multi_10req.png` — time for 10 parallel requests (multi‑threaded or pool)
+- `race_naive.png` — listing showing lost counts with `COUNTER_MODE=naive`
+- `race_locked.png` — listing showing correct counts with `COUNTER_MODE=locked`
+- `ratelimit_spam.png` — the spam command(s) + stated R/s
+- `ratelimit_rates.png` — computed 200/s and 429/s
+- `ratelimit_host.png` & `ratelimit_container.png` — per‑IP demonstration
+
+---
+
+## 6) Conclusions
+
+- Concurrency reduces wall‑time significantly compared to a serial server under 1s/request load.
+- Unsynchronized increments lose updates; a **mutex** fixes the race deterministically.
+- **Token‑bucket** rate limiting protects the server and is **per‑IP**, so one client cannot starve others.
