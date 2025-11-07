@@ -1,0 +1,6 @@
+services:
+  game-server:
+    build: .
+    ports:
+      - "8080:8080"
+    command: ["node", "--require", "source-map-support/register", "dist/src/server.js", "8080", "boards/perfect.txt"]
