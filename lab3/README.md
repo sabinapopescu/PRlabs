@@ -5,7 +5,8 @@ During this laboratory work I developed a networked multiplayer version of Memor
 * I have multiple directories in the root. The *boards* directory contains game board configuration files (ab.txt, perfect.txt, zoom.txt) that define different card layouts. *src* contains the TypeScript source files including the core game logic (board.ts, player.ts, server.ts, commands.ts, simulation.ts). test contains unit tests (board.test.ts) for testing the game components. *public* contains  web assets served to clients. *doc* contains documentation resources organized into subdirectories using *TypeDoc*.
 * In this project, the *Dockerfile* defines how the game server environment is built, including TypeScript compilation, and all necessary dependencies to run the Memory Scramble server inside a container. The docker-compose.yml file orchestrates the container, mapping port 8080 for HTTP access and specifying which board file to use when starting the server.
 
-![](images_report/image.png)
+<img width="265" height="626" alt="image" src="https://github.com/user-attachments/assets/2e8861d3-84b0-4251-a9ea-59c328c878a2" />
+
 
 ## Dockerfile
 The *Dockerfile* sets up the environment, copies the package.json files and installs all npm dependencies, then copies the entire project source code into the container's /app directory. It compiles the TypeScript source files into JavaScript using npm run compile, exposes port 8080 for HTTP access, and starts the Memory Scramble server with the perfect.txt board configuration file.
