@@ -1,19 +1,5 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Virtual environment
-venv/
-env/
-ENV/
-
-# Docker
-*.log
-
-# IDE
-.vscode/
-.idea/
-
-# OS
 .DS_Store
+/node_modules/
+/package-lock.json
+/dist/
+/coverage/
