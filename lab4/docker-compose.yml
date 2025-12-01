@@ -1,0 +1,87 @@
+version: "3.8"
+
+services:
+  leader:
+    build: .
+    container_name: leader
+    command: python server.py
+    ports:
+      - "5050:5000"
+    environment:
+      - NODE_TYPE=leader
+      - PORT=5000
+      - WRITE_QUORUM=5
+      - MIN_DELAY=0.0
+      - MAX_DELAY=1.0
+    networks:
+      - network
+    depends_on:
+      - follower1
+      - follower2
+      - follower3
+      - follower4
+      - follower5
+
+  follower1:
+    build: .
+    container_name: follower1
+    command: python server.py
+    ports:
+      - "5001:5000"
+    environment:
+      - NODE_TYPE=follower
+      - PORT=5000
+    networks:
+      - network
+
+  follower2:
+    build: .
+    container_name: follower2
+    command: python server.py
+    ports:
+      - "5002:5000"
+    environment:
+      - NODE_TYPE=follower
+      - PORT=5000
+    networks:
+      - network
+
+  follower3:
+    build: .
+    container_name: follower3
+    command: python server.py
+    ports:
+      - "5003:5000"
+    environment:
+      - NODE_TYPE=follower
+      - PORT=5000
+    networks:
+      - network
+
+  follower4:
+    build: .
+    container_name: follower4
+    command: python server.py
+    ports:
+      - "5004:5000"
+    environment:
+      - NODE_TYPE=follower
+      - PORT=5000
+    networks:
+      - network
+
+  follower5:
+    build: .
+    container_name: follower5
+    command: python server.py
+    ports:
+      - "5005:5000"
+    environment:
+      - NODE_TYPE=follower
+      - PORT=5000
+    networks:
+      - network
+
+networks:
+  network:
+    driver: bridge
