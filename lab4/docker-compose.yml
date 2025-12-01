@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  leader:
+    build: .
+    container_name: leader
+    environment:
+      - NODE_TYPE=leader
+      - WRITE_QUORUM=5
+      - MIN_DELAY=0.0001
+      - MAX_DELAY=0.01
+      - PORT=5000
+    ports:
+      - "5001:5000"
+    networks:
+      - kvstore-network
+
+  follower1:
+    build: .
+    container_name: follower1
+    environment:
+      - NODE_TYPE=follower
+      - PORT=5000
+    networks:
+      - kvstore-network
+    depends_on:
+      - leader
+
+  follower2:
+    build: .
+    container_name: follower2
+    environment:
+      - NODE_TYPE=follower
+      - PORT=5000
+    networks:
+      - kvstore-network
+    depends_on:
+      - leader
+
+  follower3:
+    build: .
+    container_name: follower3
+    environment:
+      - NODE_TYPE=follower
+      - PORT=5000
+    networks:
+      - kvstore-network
+    depends_on:
+      - leader
+
+  follower4:
+    build: .
+    container_name: follower4
+    environment:
+      - NODE_TYPE=follower
+      - PORT=5000
+    networks:
+      - kvstore-network
+    depends_on:
+      - leader
+
+  follower5:
+    build: .
+    container_name: follower5
+    environment:
+      - NODE_TYPE=follower
+      - PORT=5000
+    networks:
+      - kvstore-network
+    depends_on:
+      - leader
+
+networks:
+  kvstore-network:
+    driver: bridge

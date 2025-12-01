@@ -1,0 +1,47 @@
+[
+  {
+    "quorum": 1,
+    "success_count": 9955,
+    "total_writes": 10000,
+    "total_time": 126.90467524528503,
+    "avg_latency": 0.17889612263497967,
+    "median_latency": 0.05350494384765625,
+    "p95_latency": 0.22306394577026367
+  },
+  {
+    "quorum": 2,
+    "success_count": 9955,
+    "total_writes": 10000,
+    "total_time": 126.40074801445007,
+    "avg_latency": 0.1805041343347922,
+    "median_latency": 0.051774024963378906,
+    "p95_latency": 0.19208288192749023
+  },
+  {
+    "quorum": 3,
+    "success_count": 9943,
+    "total_writes": 10000,
+    "total_time": 126.41815614700317,
+    "avg_latency": 0.17549481596203861,
+    "median_latency": 0.05122113227844238,
+    "p95_latency": 0.18748998641967773
+  },
+  {
+    "quorum": 4,
+    "success_count": 9911,
+    "total_writes": 10000,
+    "total_time": 127.85714912414551,
+    "avg_latency": 0.15897795827101777,
+    "median_latency": 0.051116228103637695,
+    "p95_latency": 0.1961348056793213
+  },
+  {
+    "quorum": 5,
+    "success_count": 9811,
+    "total_writes": 10000,
+    "total_time": 127.80763220787048,
+    "avg_latency": 0.11625590439589305,
+    "median_latency": 0.07005190849304199,
+    "p95_latency": 0.23131418228149414
+  }
+]
