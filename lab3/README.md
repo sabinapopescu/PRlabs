@@ -5,10 +5,6 @@
 **Lab:** Network Protocol Laboratory (LAB3_PR)  
 **Topic:** Concurrent Multiplayer Memory Game with HTTP Protocol
 
-<<<<<<< HEAD
-=======
----
->>>>>>> 05e2efd8f73b739a6b355fe7df39f724e8393fb1
 
 ## Project Overview
 
