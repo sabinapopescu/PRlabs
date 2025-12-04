@@ -6,8 +6,6 @@
 **Topic:** Concurrent Multiplayer Memory Game with HTTP Protocol
 
 <<<<<<< HEAD
-<img width="265" height="626" alt="image" src="https://github.com/user-attachments/assets/2e8861d3-84b0-4251-a9ea-59c328c878a2" />
-
 =======
 ---
 >>>>>>> 05e2efd8f73b739a6b355fe7df39f724e8393fb1
@@ -306,7 +304,7 @@ services:
 docker compose up
 ```
 
-![Dockerfile structure](images_report/image.png)
+<img width="265" height="626" alt="image" src="https://github.com/user-attachments/assets/2e8861d3-84b0-4251-a9ea-59c328c878a2" />
 
 ### Playing the Game
 
