@@ -6,7 +6,7 @@
 
 ```bash
 # 1. Navigate to LAB 4 directory
-cd "LAB 4"
+cd "lab4"
 
 # 2. Create and activate virtual environment
 python3 -m venv venv
@@ -649,7 +649,8 @@ The visualization shows three key plots:
 
 **Visual Analysis**:
 
-![Quorum Analysis Results](tests/quorum_analysis1.1.png)
+<img width="1596" height="995" alt="image" src="https://github.com/user-attachments/assets/6fa668d9-c1f5-4886-b197-7f95b8ed1d4b" />
+
 
 ### 4. Latency vs Quorum Comparison
 
