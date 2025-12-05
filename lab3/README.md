@@ -416,11 +416,12 @@ The documentation includes:
 - Return types and error conditions
 - Overview of each function's purpose
 
-![Documentation overview](images_report/image-1.png)
+<img width="1791" height="459" alt="image" src="https://github.com/user-attachments/assets/8c95a1de-939f-4df0-a8fd-cc75dce8fd2e" />
+<img width="1792" height="869" alt="image" src="https://github.com/user-attachments/assets/af79ccad-a5a5-47cf-ae87-5f53c20d4adf" />
+<img width="1792" height="1034" alt="image" src="https://github.com/user-attachments/assets/27f7f245-5306-45e5-9ef1-9ad424f04c3c" />
 
-![Documentation details](images_report/image-2.png)
 
-![Function documentation](images_report/image-3.png)
+
 
 **Key Documentation Elements:**
 
@@ -794,30 +795,6 @@ private readonly players: Map<string, Player>;  // O(1) lookup
 3. **Testing Saves Time** - Caught bugs early, rule-by-rule validation worked
 4. **TypeScript Type Safety** - Prevented many runtime errors
 5. **Documentation as Design** - Writing AF/RI clarified design decisions
-
----
-
-## Future Enhancements
-
-**Gameplay:**
-- Scoring system
-- Time limits
-- Power-ups (peek, shuffle, freeze)
-- Different board sizes
-- Custom card sets
-
-**Technical:**
-- WebSocket for real-time updates
-- Persistent game state (database)
-- Lobby system for game rooms
-- Player statistics tracking
-- AI opponents
-
-**Performance:**
-- Optimize for 100+ concurrent players
-- Compress board state
-- Client-side prediction
-- Delta updates
 
 ---
 
